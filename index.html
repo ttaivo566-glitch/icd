@@ -26,11 +26,21 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--pr);outline-offs
 .er{display:grid;grid-template-columns:70px 1fr 70px;gap:6px;align-items:start}
 .er .ic{grid-column:1/-1}
 code{background:var(--bg);padding:1px 6px;border-radius:5px}
+#oc{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px;white-space:nowrap}
+#oc button{flex:none;padding:6px 12px;border-radius:16px;font:inherit;font-size:14px;border:1px solid var(--bi);background:var(--card);color:var(--tx);cursor:pointer}
+#oc button.on{background:var(--pr);color:#fff;border-color:var(--pr)}
+#ap{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-top:3px solid var(--pr);box-shadow:0 -4px 16px #0004;max-height:45vh;overflow:auto}
+.aph{display:flex;justify-content:space-between;gap:8px;padding:8px 14px;cursor:pointer;position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--bd)}
+#apb{padding:6px 14px 12px;max-width:900px;margin:auto}
+.ao table{width:100%;border-collapse:collapse;margin:6px 0 10px}
+.ao td{border:1px solid var(--bd);padding:6px 8px;vertical-align:top}
+.ao td:first-child{color:#fff;font-weight:600;width:92px;white-space:nowrap}
 </style></head><body><div class="w">
 <nav><button data-t="s" class="on">Tra cứu</button><button data-t="p">Phân loại thể lực</button><button data-t="e">Chỉnh sửa</button></nav>
 
 <section id="s">
  <div class="sb"><input id="q" placeholder="Gõ tên bệnh, mã ICD hoặc nội dung trong bảng 1613…" autocomplete="off"><div class="dd" id="dd" hidden></div></div>
+ <div id="oc"></div>
  <div class="mu" id="cnt" style="margin:6px 2px"></div><div id="res"></div>
 </section>
 
@@ -59,6 +69,7 @@ code{background:var(--bg);padding:1px 6px;border-radius:5px}
  <input id="eq" placeholder="Lọc dòng trong bảng…" style="margin:6px 0"><div id="el"></div>
  <input type="file" id="fi" accept=".json" hidden>
 </section></div>
+<div id="ap" hidden><div class="aph"><b>Phụ lục II – Phân loại theo cơ quan</b><span id="apt" class="mu">Thu gọn ▾</span></div><div id="apb"></div></div>
 
 <script>
 // ===== Dữ liệu mẫu (id, nội dung, loại). Loại để trống = chưa phân loại =====
@@ -113,21 +124,57 @@ async function load(){let L=null,R=null;try{L=JSON.parse(localStorage.db1613||'n
  try{const r=await fetch('data.json?'+Date.now());if(r.ok)R=await r.json()}catch(e){}
  const best=[L,R].filter(x=>x&&x.rows).sort((a,b)=>b.updated-a.updated)[0];if(best)DB=best;}
 
+// ===== Phụ lục II: phân loại theo cơ quan =====
+const T3=n=>['Cả '+n+' chỉ tiêu đều đạt loại I','Cả '+n+' chỉ tiêu đều đạt loại I và 2','Cả '+n+' chỉ tiêu đều đạt loại 3 trở lên'];
+const OG=[
+{k:'tl',n:'Thể lực',s:'TLC',al:['tlc'],c:['Cả 3 chỉ tiêu đều đạt loại I hoặc chỉ có vòng ngực là loại 2','Cả 3 chỉ tiêu đều đạt loại I và 2 hoặc chỉ có vòng ngực loại 3','Cả 3 chỉ tiêu đều đạt loại 3 trở lên']},
+{k:'m',n:'Mắt',s:'M',a:[1,13],al:[],c:['Cả 13 chỉ tiêu đều đạt loại I hoặc chỉ có chỉ tiêu 3.2 là loại 2','Cả 13 chỉ tiêu đều đạt loại 1, 2 trở lên','Cả 13 chỉ tiêu đều đạt loại 3 trở lên']},
+{k:'tmh',n:'Tai – Mũi – Họng',s:'TMH',a:[14,22],al:['tmh'],c:['Cả 9 chỉ tiêu đều đạt loại I hoặc chỉ có chỉ tiêu 19.2, 20.2 là loại 2','Cả 9 chỉ tiêu đều đạt loại 1 và loại 2 hoặc chỉ có chỉ tiêu 20.3 là loại 3','Cả 9 chỉ tiêu đều đạt loại 3 trở lên']},
+{k:'rhm',n:'Răng – Hàm – Mặt',s:'RHM',a:[23,31],al:['rhm'],c:['Cả 9 chỉ tiêu đều đạt loại I hoặc chỉ có chỉ tiêu 24.2, 27.2 là loại 2','Cả 9 chỉ tiêu đều đạt loại 1 và loại 2 hoặc chỉ có chỉ tiêu 23.3, 29.3 là loại 3','Cả 9 chỉ tiêu đều đạt loại 3 trở lên']},
+{k:'tk',n:'Tâm thần – Thần kinh',s:'TT-TK',a:[32,44],al:[],c:['Cả 13 chỉ tiêu đều đạt loại I hoặc chỉ có chỉ tiêu 35.2, 37.2, 38.2 là loại 2','Cả 13 chỉ tiêu đều đạt loại 2 trở lên','Cả 13 chỉ tiêu đều đạt loại 3 trở lên']},
+{k:'th',n:'Tuần hoàn',s:'TH',a:[45,50],al:[],c:['Cả 6 chỉ tiêu đều đạt loại I hoặc chỉ có chỉ tiêu 45.1 đạt loại 2','Cả 6 chỉ tiêu đều đạt loại I và loại 2 hoặc chỉ có chỉ tiêu 45.1 loại 3','Cả 6 chỉ tiêu đều đạt loại 3 trở lên']},
+{k:'hh',n:'Hô hấp',s:'HH',a:[51,53],al:[],c:T3(3)},
+{k:'td',n:'Tiêu hóa',s:'T.hóa',a:[54,62],al:[],c:['Cả 9 chỉ tiêu đều đạt loại I hoặc chỉ có chỉ tiêu 58.3, 59.2 là loại 2','Cả 9 chỉ tiêu đều đạt loại 1 và 2','Cả 9 chỉ tiêu đều đạt loại 3 trở lên']},
+{k:'tn',n:'Tiết niệu – Sinh dục',s:'TN-SD',a:[63,65],al:[],c:['Cả 3 chỉ tiêu đều đạt loại I','Cả 3 chỉ tiêu đều đạt loại 1 và 2','Cả 3 chỉ tiêu đều đạt loại 3 trở lên']},
+{k:'vd',n:'Hệ vận động',s:'HVĐ',a:[66,78],al:['hvd'],c:['Cả 13 chỉ tiêu đều đạt loại I hoặc chỉ có chỉ tiêu 69.2, 71.2 là loại 2','Cả 3 chỉ tiêu đều đạt loại 1 và 2 hoặc chỉ có chỉ tiêu 67.2, 71.4 là loại 3','Cả 13 chỉ tiêu đều đạt loại 3 trở lên'],note:1},
+{k:'dl',n:'Ngoài da – Da liễu',s:'ND-DL',a:[79,94],al:[],c:['Cả 16 chỉ tiêu đều đạt loại I hoặc chỉ có chỉ tiêu 82.2 là loại 2','Cả 16 chỉ tiêu đều đạt loại I và 2','Cả 16 chỉ tiêu đều đạt loại 3 trở lên']},
+{k:'nt',n:'Nội tiết – Chuyển hóa',s:'NT-CH',a:[95,100],al:[],c:T3(6)},
+{k:'u',n:'U các loại',s:'U',a:[101,102],al:[],c:T3(2)}];
+OG.forEach(o=>o.n2=nm(o.n).replace(/[^a-z0-9]+/g,' ').trim());
+let ORGSEL=null,APC=false;
+function organOf(r){const n=parseInt(r.id);if(!n)return null;return OG.find(o=>o.a&&n>=o.a[0]&&n<=o.a[1])||null}
+function apHTML(o){const L=[...o.c,'Có 1 chỉ tiêu ở loại 4','Có 1 chỉ tiêu ở loại 5'],R=['I','II','III','IV','V'];
+ return `<div class="ao"><b>${esc(o.n)}</b> <span class="mu">(${esc(o.s)}${o.a?' · mục '+o.a[0]+'–'+o.a[1]:''})</span><table>`+L.map((t,i)=>`<tr><td style="background:${GC[i+1]}">Loại ${R[i]}<br><small>${GN[i+1]}</small></td><td>${esc(t)}${o.note&&i==1?' <span class="mu">(nguyên văn quyết định ghi "Cả 3", có thể là lỗi in của "Cả 13")</span>':''}</td></tr>`).join('')+'</table></div>'}
+function panel(){const p=$('#ap'),v=$('#q').value.trim();let list=[],msg='';
+ if(ORGSEL)list=[ORGSEL];
+ else if(/^[a-z]\d{2}(\.\d*)?$/i.test(v)){const u=v.toUpperCase(),set=new Set();
+  DB.rows.forEach(x=>{if((x.icd||[]).some(c=>c.toUpperCase().startsWith(u))){const o=organOf(x);if(o)set.add(o.k)}});
+  list=OG.filter(o=>set.has(o.k));
+  msg=list.length?'Mã '+u+' thuộc cơ quan:':'Mã '+u+' chưa được gắn vào mục nào của bảng 1613. Gắn ở tab Chỉnh sửa để hiện bảng cơ quan.'}
+ else{const q2=nm(v).replace(/[^a-z0-9]+/g,' ').trim();if(q2.length>=3)list=OG.filter(o=>o.n2.startsWith(q2)||o.al.includes(q2))}
+ if(!list.length&&!msg){p.hidden=true;document.body.style.paddingBottom='';return}
+ $('#apb').innerHTML=(msg?`<div class="mu" style="margin-top:6px">${esc(msg)}</div>`:'')+list.map(apHTML).join('');
+ $('#apb').hidden=APC;p.hidden=false;document.body.style.paddingBottom=(p.offsetHeight+16)+'px'}
+$('#oc').innerHTML=OG.map(o=>`<button data-o="${o.k}">${esc(o.n)}</button>`).join('');
+$('#oc').onclick=e=>{const b=e.target.closest('[data-o]');if(!b)return;ORGSEL=OG.find(o=>o.k===b.dataset.o);$('#q').value=ORGSEL.n;$('#dd').hidden=true;
+ $$('#oc button').forEach(x=>x.classList.toggle('on',x===b));search()};
+document.querySelector('.aph').onclick=()=>{APC=!APC;$('#apt').textContent=APC?'Mở rộng ▴':'Thu gọn ▾';panel()};
+
 // ===== Tra cứu =====
 const gb=g=>{const d=(String(g).match(/\d/)||[])[0];return d?`<span class="g" style="background:${GC[d]}">Loại ${esc(g)}</span>`:'<span class="g" style="background:#9ca3af">Chưa phân loại</span>'};
 function hay(r){return nm(r.id+' '+r.t+' '+r.icd.map(c=>c+' '+iname(c)).join(' '))}
 function match(h,q){return q.every(t=>h.includes(t))}
 function search(){const v=$('#q').value.trim(),q=nm(v).split(/\s+/).filter(Boolean);let out=[];
- DB.rows.forEach(r=>{if(!q.length||match(hay(r),q)){if(r.icd.length)r.icd.forEach(c=>out.push([r,c]));else out.push([r,''])}});
+ DB.rows.forEach(r=>{if(ORGSEL?organOf(r)===ORGSEL:(!q.length||match(hay(r),q))){if(r.icd.length&&!ORGSEL)r.icd.forEach(c=>out.push([r,c]));else out.push([r,''])}});
  $('#cnt').textContent=q.length?out.length+' kết quả':'Hiển thị '+out.length+' dòng';
- $('#res').innerHTML=out.slice(0,80).map(([r,c])=>`<div class="card"><div>${c?`<b>${esc(iname(c)||'(không rõ tên bệnh)')}</b> <code>${esc(c)}</code>`:`<b>${esc(r.t)}</b>`}</div>
+ $('#res').innerHTML=out.slice(0,150).map(([r,c])=>`<div class="card"><div>${c?`<b>${esc(iname(c)||'(không rõ tên bệnh)')}</b> <code>${esc(c)}</code>`:`<b>${esc(r.t)}</b>`}</div>
  <div style="margin:4px 0">${gb(r.g)} ${r.g&&GN[(r.g.match(/\d/)||[])[0]]?`<span class="mu">${GN[r.g.match(/\d/)[0]]}</span>`:''} · <span class="mu">Mục ${esc(r.id)} – QĐ 1613</span></div>
- ${c?`<div class="mu">${esc(r.t)}</div>`:''}</div>`).join('')+(out.length>80?'<div class="mu">… còn nữa, gõ thêm để lọc.</div>':'')}
+ ${c?`<div class="mu">${esc(r.t)}</div>`:''}</div>`).join('')+(out.length>150?'<div class="mu">… còn nữa, gõ thêm để lọc.</div>':'');panel()}
 function suggest(){const v=$('#q').value.trim(),q=nm(v).split(/\s+/).filter(Boolean),dd=$('#dd');if(!q.length){dd.hidden=true;return}
  let s=[];const seen=new Set();DB.rows.forEach(r=>{if(s.length<5&&match(hay(r),q)){s.push(['Mục '+r.id+' · '+r.t,r.t]);}});
  for(const x of ICD){if(s.length>=10)break;if(match(x.n,q))s.push([x.code+' — '+x.name,x.code])}
  dd.innerHTML=s.map(a=>`<div data-v="${esc(a[1])}">${esc(a[0])}</div>`).join('');dd.hidden=!s.length}
-$('#q').oninput=()=>{search();suggest()};
+$('#q').oninput=()=>{ORGSEL=null;$$('#oc button').forEach(x=>x.classList.remove('on'));search();suggest()};
 $('#dd').onclick=e=>{const d=e.target.closest('[data-v]');if(d){$('#q').value=d.dataset.v;$('#dd').hidden=true;search()}};
 document.addEventListener('click',e=>{if(!e.target.closest('.sb'))$('#dd').hidden=true});
 
@@ -181,7 +228,7 @@ $('#gs').onclick=()=>{localStorage.gh=JSON.stringify({repo:$('#g1').value.trim()
 
 // ===== Tab =====
 $$('nav button').forEach(b=>b.onclick=()=>{$$('nav button').forEach(x=>x.classList.toggle('on',x===b));
- ['s','p','e'].forEach(k=>$('#'+k).hidden=k!==b.dataset.t);if(b.dataset.t==='e')renderE();else if(b.dataset.t==='s')search()});
+ ['s','p','e'].forEach(k=>$('#'+k).hidden=k!==b.dataset.t);$('#ap').hidden=true;document.body.style.paddingBottom='';if(b.dataset.t==='e')renderE();else if(b.dataset.t==='s')search()});
 // ===== Firebase =====
 window.onRows=l=>{DB.rows=l;search();if(!$('#e').hidden&&!(document.activeElement&&document.activeElement.closest('#el,#fbbar')))renderE()};
 window.onAuth=()=>{if(!$('#e').hidden)renderE()};
