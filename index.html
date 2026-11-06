@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Phân loại sức khoẻ - QĐ 1613/BYT-QĐ</title>
+<!-- Đặt file ICD của bạn cạnh index.html rồi đổi tên cho đúng: -->
+<script src="icd.js" onerror="console.warn('Chưa có icd.js')"></script>
+<script src="firebase-config.js" onerror="console.warn('Chưa có firebase-config.js: chạy chế độ không đồng bộ')"></script>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f24;--mu:#6b7280;--bd:#e3e6ea;--pr:#2563eb}
+@media(prefers-color-scheme:dark){:root{--bg:#14171b;--card:#1d2127;--tx:#e8eaed;--mu:#9aa3ad;--bd:#2c323a;--pr:#60a5fa}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+.w{max-width:900px;margin:auto;padding:12px}
+nav{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+nav button,.b{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit}
+nav button.on,.b.p{background:var(--pr);color:#fff;border-color:var(--pr)}
+input,select,textarea{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;width:100%}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin:8px 0}
+.sb{position:relative}.dd{position:absolute;left:0;right:0;top:100%;z-index:9;background:var(--card);border:1px solid var(--bd);border-radius:8px;box-shadow:0 6px 18px #0003;max-height:300px;overflow:auto}
+.dd div{padding:8px 12px;cursor:pointer}.dd div:hover,.dd div.h{background:var(--bg)}
+.g{display:inline-block;color:#fff;border-radius:6px;padding:1px 9px;font-weight:600;font-size:13px}
+.mu{color:var(--mu);font-size:13px}.tag{display:inline-flex;gap:4px;align-items:center;background:var(--bg);border:1px solid var(--bd);border-radius:14px;padding:2px 4px 2px 10px;margin:2px;font-size:13px}
+.tag b{cursor:pointer;padding:0 6px;color:var(--mu)}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.er{display:grid;grid-template-columns:70px 1fr 70px;gap:6px;align-items:start}
+.er .ic{grid-column:1/-1}
+code{background:var(--bg);padding:1px 6px;border-radius:5px}
+</style></head><body><div class="w">
+<nav><button data-t="s" class="on">Tra cứu</button><button data-t="p">Phân loại thể lực</button><button data-t="e">Chỉnh sửa</button></nav>
+
+<section id="s">
+ <div class="sb"><input id="q" placeholder="Gõ tên bệnh, mã ICD hoặc nội dung trong bảng 1613…" autocomplete="off"><div class="dd" id="dd" hidden></div></div>
+ <div class="mu" id="cnt" style="margin:6px 2px"></div><div id="res"></div>
+</section>
+
+<section id="p" hidden>
+ <div class="card"><b>Phân loại thể lực</b> <span class="mu">(mục II.1 – áp dụng từ 15 tuổi)</span>
+ <div class="row" style="margin-top:8px">
+  <label>Giới<select id="sx"><option value="m">Nam</option><option value="f">Nữ</option></select></label>
+  <label>Đối tượng<select id="ob"><option value="w">Lao động</option><option value="s">Học sinh/sinh viên</option></select></label>
+  <label>Tuổi<input id="ag" type="number" min="0"></label>
+  <label>Chiều cao (cm)<input id="ht" type="number" step="0.1"></label>
+  <label>Cân nặng (kg)<input id="wt" type="number" step="0.1"></label>
+  <label>Vòng ngực (cm)<input id="ch" type="number" step="0.1" placeholder="bỏ trống = cao/2"></label>
+ </div><p><button class="b p" id="go">Phân loại</button></p><div id="pr"></div></div>
+</section>
+
+<section id="e" hidden>
+ <div id="fbbar"></div>
+ <div class="card"><div class="row">
+  <button class="b" id="add">+ Thêm dòng</button><button class="b" id="exp">Xuất JSON</button>
+  <button class="b" id="imp">Nhập JSON</button><button class="b" id="gh">Cài đặt GitHub</button></div>
+  <div id="ghf" hidden style="margin-top:8px"><div class="row">
+   <input id="g1" placeholder="user/repo"><input id="g2" placeholder="nhánh (main)"><input id="g3" placeholder="đường dẫn (data.json)"><input id="g4" type="password" placeholder="Token (fine-grained, chỉ repo này)"></div>
+   <p><button class="b p" id="gs">Lưu cài đặt &amp; đẩy lên GitHub</button></p>
+   <div class="mu">Token chỉ lưu trong trình duyệt của bạn. Có token thì mỗi chỉnh sửa tự commit vào data.json.</div></div>
+  <div class="mu" id="st" style="margin-top:6px"></div></div>
+ <input id="eq" placeholder="Lọc dòng trong bảng…" style="margin:6px 0"><div id="el"></div>
+ <input type="file" id="fi" accept=".json" hidden>
+</section></div>
+
+<script>
+// ===== Dữ liệu mẫu (id, nội dung, loại). Loại để trống = chưa phân loại =====
+const S=[
+['1','Thị lực: một mắt 10/10; tổng 2 mắt 19-20/10','1'],['1','Thị lực: một mắt 9-10/10; tổng 2 mắt 16-18/10','2'],['1','Thị lực: một mắt 7-9/10; tổng 2 mắt 14-15/10','3'],['1','Thị lực: một mắt 6-7/10; tổng 2 mắt 11-13/10','4'],['1','Thị lực: một mắt dưới 6/10; tổng 2 mắt dưới 11/10','5'],
+['8.2','Cận thị: xếp theo thị lực có kính, hạ xuống một loại',''],['11.2','Rối loạn sắc giác','' ],['14.1','Tai ngoài bình thường','1'],
+['16.2','Thính lực kế: không giảm hoặc giảm dưới 15 dBA','1'],['16.2','Thính lực kế: giảm 2 tai 15-35 dBA','2'],['16.2','Thính lực kế: giảm 2 tai 36-45 dBA','3'],['16.2','Thính lực kế: giảm 2 tai 46-65 dBA','4'],['16.2','Thính lực kế: giảm 2 tai trên 65 dBA','5'],
+['19.2','Viêm họng mạn tính đơn thuần, thể trạng tốt','2'],['20.2','Amidan hơi to hay trung bình, thỉnh thoảng mới viêm','2'],['20.3','Amidan viêm mạn tính, có hốc mủ hay viêm nhiễm tái phát','3'],
+['23.1','Không có răng sâu','1'],['23.2','Răng sâu men, ngà 1-3 cái, không đau hoặc đã trám','2'],['23.3','Răng sâu men, ngà 4-5 cái','3'],['23.4','Răng sâu men, ngà từ 6 cái trở lên','4'],
+['35.2','Động kinh: cơn hiếm, thưa (dưới 3 cơn/năm)','2'],['45.1','Dưới 30 tuổi: HA tối đa 110-125, tối thiểu 65-85 mmHg','1'],['45.1','Dưới 30 tuổi: HA tối đa 126-135, tối thiểu 60-dưới 90 mmHg','2'],['45.1','Dưới 30 tuổi: HA tối đa 136-140, tối thiểu 90-95 mmHg','3'],['45.1','Dưới 30 tuổi: HA trên 140/trên 95 mmHg','4'],
+['45.2','Từ 30-50 tuổi: HA dưới 140/dưới 90 mmHg',''],['45.2','Từ 30-50 tuổi: HA 140-145/90-95 mmHg',''],
+['46.1','Mạch 60-75 lần/phút','1'],['46.1','Mạch 76-85 lần/phút','2'],['46.1','Mạch 86-95 hoặc 55-60 lần/phút','3'],['46.1','Mạch trên 95 lần/phút',''],
+['52.4','Hen phế quản nhẹ và vừa',''],['52.4','Hen phế quản nặng',''],['55.2','Viêm dạ dày - tá tràng mạn tính',''],['89.2','HIV dương tính',''],['97.2','Đái tháo đường type I chưa biến chứng',''],['97.2','Đái tháo đường type II chưa biến chứng',''],
+['100.2','Béo phệ: BMI = 25',''],['100.2','Béo phệ: BMI 26-27',''],['100.2','Béo phệ: BMI từ 28 trở lên',''],['102.2','U ác tính','']
+].map(a=>({id:a[0],t:a[1],g:a[2],icd:[]}));
+
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const GC={1:'#16a34a',2:'#0891b2',3:'#ca8a04',4:'#ea580c',5:'#dc2626'},GN={1:'Rất khoẻ',2:'Khoẻ',3:'Trung bình',4:'Yếu',5:'Rất yếu'};
+const nm=s=>(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').toLowerCase();
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let DB={updated:0,rows:S};
+
+// ===== ICD: tự nhận dạng cấu trúc file js (code/ma/icd + name/ten/title) =====
+let ICD=[],IM={};
+async function loadICD(){
+ let s=window.ICD_DATA||window.ICD||window.icdData||window.icd||window.ICD10||[];
+ try{const r=await fetch('icd.json');if(r.ok){const j=await r.json();
+  if(j.resourceType==='CodeSystem'){const f=[],w=a=>(a||[]).forEach(c=>{f.push({code:c.code,name:c.display||''});w(c.concept)});w(j.concept);s=f}else s=j}}catch(e){}
+ const a=Array.isArray(s)?s:Object.entries(s).map(([k,v])=>({code:k,name:typeof v==='string'?v:(v.name||v.ten)}));
+ ICD=a.map(o=>{if(typeof o==='string')return{code:o,name:'',n:nm(o)};const k=Object.keys(o);
+  const c=o.code||o.ma||o.icd||o.icd10||o.id||o[k[0]],n=o.name||o.ten||o.title||o.disease||o.vi||o[k[1]]||'';
+  return{code:String(c||''),name:String(n),n:nm(c+' '+n)}});
+ IM={};ICD.forEach(x=>IM[x.code.toUpperCase()]=x);
+}
+const iname=c=>(IM[c.toUpperCase()]||{}).name||'';
+
+// ===== Lưu trữ =====
+function stat(m){$('#st').textContent=m}
+const FBON=!!window.FB_CONFIG,FQ={};let tm;
+function save(r){
+ if(FBON){if(!r||!r.k||!window.FBX||!FBX.user)return;clearTimeout(FQ[r.k]);stat('Đang lưu…');
+  FQ[r.k]=setTimeout(()=>FBX.put(r).then(()=>stat('Đã lưu lên Firebase ✓')).catch(e=>stat('Lỗi: '+(e.code||e.message))),500);return}
+ DB.updated=Date.now();localStorage.db1613=JSON.stringify(DB);stat('Đã lưu trên trình duyệt');
+ clearTimeout(tm);if((JSON.parse(localStorage.gh||'{}')).token)tm=setTimeout(push,2500)}
+async function push(){const c=JSON.parse(localStorage.gh||'{}');if(!c.token||!c.repo)return;
+ const p=c.path||'data.json',br=c.branch||'main',u=`https://api.github.com/repos/${c.repo}/contents/${p}`,
+ h={Authorization:'Bearer '+c.token,Accept:'application/vnd.github+json'};stat('Đang đẩy lên GitHub…');
+ try{let sha;const r=await fetch(u+'?ref='+br,{headers:h});if(r.ok)sha=(await r.json()).sha;
+ const b={message:'Cập nhật dữ liệu QĐ 1613',branch:br,content:btoa(unescape(encodeURIComponent(JSON.stringify(DB))))};if(sha)b.sha=sha;
+ const w=await fetch(u,{method:'PUT',headers:h,body:JSON.stringify(b)});stat(w.ok?'Đã lưu lên GitHub ✓':'Lỗi GitHub '+w.status)}catch(e){stat('Lỗi mạng: '+e.message)}}
+async function load(){let L=null,R=null;try{L=JSON.parse(localStorage.db1613||'null')}catch(e){}
+ try{const r=await fetch('data.json?'+Date.now());if(r.ok)R=await r.json()}catch(e){}
+ const best=[L,R].filter(x=>x&&x.rows).sort((a,b)=>b.updated-a.updated)[0];if(best)DB=best;}
+
+// ===== Tra cứu =====
+const gb=g=>{const d=(String(g).match(/\d/)||[])[0];return d?`<span class="g" style="background:${GC[d]}">Loại ${esc(g)}</span>`:'<span class="g" style="background:#9ca3af">Chưa phân loại</span>'};
+function hay(r){return nm(r.id+' '+r.t+' '+r.icd.map(c=>c+' '+iname(c)).join(' '))}
+function match(h,q){return q.every(t=>h.includes(t))}
+function search(){const v=$('#q').value.trim(),q=nm(v).split(/\s+/).filter(Boolean);let out=[];
+ DB.rows.forEach(r=>{if(!q.length||match(hay(r),q)){if(r.icd.length)r.icd.forEach(c=>out.push([r,c]));else out.push([r,''])}});
+ $('#cnt').textContent=q.length?out.length+' kết quả':'Hiển thị '+out.length+' dòng';
+ $('#res').innerHTML=out.slice(0,80).map(([r,c])=>`<div class="card"><div>${c?`<b>${esc(iname(c)||'(không rõ tên bệnh)')}</b> <code>${esc(c)}</code>`:`<b>${esc(r.t)}</b>`}</div>
+ <div style="margin:4px 0">${gb(r.g)} ${r.g&&GN[(r.g.match(/\d/)||[])[0]]?`<span class="mu">${GN[r.g.match(/\d/)[0]]}</span>`:''} · <span class="mu">Mục ${esc(r.id)} – QĐ 1613</span></div>
+ ${c?`<div class="mu">${esc(r.t)}</div>`:''}</div>`).join('')+(out.length>80?'<div class="mu">… còn nữa, gõ thêm để lọc.</div>':'')}
+function suggest(){const v=$('#q').value.trim(),q=nm(v).split(/\s+/).filter(Boolean),dd=$('#dd');if(!q.length){dd.hidden=true;return}
+ let s=[];const seen=new Set();DB.rows.forEach(r=>{if(s.length<5&&match(hay(r),q)){s.push(['Mục '+r.id+' · '+r.t,r.t]);}});
+ for(const x of ICD){if(s.length>=10)break;if(match(x.n,q))s.push([x.code+' — '+x.name,x.code])}
+ dd.innerHTML=s.map(a=>`<div data-v="${esc(a[1])}">${esc(a[0])}</div>`).join('');dd.hidden=!s.length}
+$('#q').oninput=()=>{search();suggest()};
+$('#dd').onclick=e=>{const d=e.target.closest('[data-v]');if(d){$('#q').value=d.dataset.v;$('#dd').hidden=true;search()}};
+document.addEventListener('click',e=>{if(!e.target.closest('.sb'))$('#dd').hidden=true});
+
+// ===== Thể lực (II.1, III, phụ lục 1-2) =====
+const T={sm:{h:[160,156,152,149],w:[48,46,42,39],c:[80,77,74,71]},sf:{h:[152,149,145,142],w:[44,42,40,37],c:[75,73,71,69]},
+ wm:{h:[163,158,154,150],w:[50,47,45,41],c:[82,79,76,74]},wf:{h:[155,151,147,143],w:[45,43,40,38],c:[76,74,72,70]}};
+const rd=x=>Math.floor(x+0.5);
+const gr=(v,a)=>{for(let i=0;i<4;i++)if(v>=a[i])return i+1;return 5};
+$('#go').onclick=()=>{const age=+$('#ag').value,H=rd(+$('#ht').value),W=rd(+$('#wt').value),sx=$('#sx').value,ob=$('#ob').value;
+ if(!H||!W)return $('#pr').innerHTML='<div class="mu">Nhập chiều cao và cân nặng.</div>';
+ if(age&&age<15)return $('#pr').innerHTML='<div class="card">Tiêu chuẩn áp dụng cho công dân từ 15 tuổi trở lên.</div>';
+ const C=rd(+$('#ch').value||H/2),t=T[ob+sx],a=gr(H,t.h),b=gr(W,t.w),c=gr(C,t.c),m=Math.max(a,b,c);
+ let k=m;if(m==3&&a<=2&&b<=2)k=2;else if(m==2&&a==1&&b==1)k=1;
+ const bmi=(+$('#wt').value/Math.pow(+$('#ht').value/100,2)).toFixed(1);
+ $('#pr').innerHTML=`<div class="card"><div style="font-size:18px">Thể lực: ${gb(k)} <span class="mu">${GN[k]}</span></div>
+ <p class="mu">Chiều cao ${H} cm → loại ${a} · Cân nặng ${W} kg → loại ${b} · Vòng ngực ${C} cm → loại ${c}${$('#ch').value?'':' (ước tính = cao/2)'}<br>BMI = ${bmi} kg/m² · Số liệu được làm tròn theo phụ lục 1.</p></div>`};
+
+// ===== Chỉnh sửa =====
+function sugICD(v){const q=nm(v).split(/\s+/).filter(Boolean);return q.length?ICD.filter(x=>match(x.n,q)).slice(0,6):[]}
+function tags(r){return r.icd.map((c,j)=>`<span class="tag"><span><b style="cursor:default;color:inherit;padding:0">${esc(c)}</b> ${esc(iname(c))}</span><b data-x="${j}">×</b></span>`).join('')}
+function erow(r,i){return `<div class="card" data-i="${i}"><div class="er"><input data-f="id" value="${esc(r.id)}" placeholder="Mục"><input data-f="t" value="${esc(r.t)}" placeholder="Nội dung"><input data-f="g" value="${esc(r.g)}" placeholder="Loại"></div>
+ <div class="ic"><div class="tg">${tags(r)}</div><div class="sb"><input data-f="icd" placeholder="Thêm mã ICD hoặc tên bệnh, Enter để thêm" autocomplete="off"><div class="dd" hidden></div></div>
+ <div style="text-align:right"><span class="mu" style="cursor:pointer" data-d="1">Xoá dòng</span></div></div></div>`}
+function authBar(){const b=$('#fbbar');if(!FBON){b.innerHTML='';return}const u=window.FBX&&FBX.user;
+ b.innerHTML=u?`<div class="card">Đã đăng nhập: <b>${esc(u.email)}</b> <button class="b" id="lo" style="width:auto">Đăng xuất</button>${DB.rows.length?'':' <button class="b p" id="sd" style="margin-top:8px">Đẩy dữ liệu gốc (data.json) lên Firebase</button>'}</div>`
+ :`<div class="card"><b>Đăng nhập để chỉnh sửa</b><div class="row" style="margin-top:8px"><input id="em" type="email" placeholder="Email"><input id="pw" type="password" placeholder="Mật khẩu"></div><p><button class="b p" id="li">Đăng nhập</button></p></div>`}
+function renderE(){authBar();if(FBON&&!(window.FBX&&FBX.user)){$('#el').innerHTML='';return}
+ const q=nm($('#eq').value).split(/\s+/).filter(Boolean);
+ $('#el').innerHTML=DB.rows.map((r,i)=>(!q.length||match(hay(r),q))?erow(r,i):'').join('')}
+$('#eq').oninput=renderE;
+const el=$('#el');
+el.addEventListener('input',e=>{const f=e.target.dataset.f,i=e.target.closest('[data-i]')?.dataset.i;if(!f)return;
+ if(f==='icd'){const d=e.target.nextElementSibling,s=sugICD(e.target.value);d.innerHTML=s.map(x=>`<div data-c="${esc(x.code)}">${esc(x.code)} — ${esc(x.name)}</div>`).join('');d.hidden=!s.length;return}
+ DB.rows[i][f]=e.target.value;save(DB.rows[i])});
+function addICD(i,c,card){c=c.trim().toUpperCase();if(!c||DB.rows[i].icd.includes(c))return;DB.rows[i].icd.push(c);save(DB.rows[i]);
+ card.querySelector('.tg').innerHTML=tags(DB.rows[i]);const inp=card.querySelector('[data-f=icd]');inp.value='';inp.nextElementSibling.hidden=true}
+el.addEventListener('keydown',e=>{if(e.key!=='Enter'||e.target.dataset.f!=='icd')return;e.preventDefault();
+ const card=e.target.closest('[data-i]'),v=e.target.value.trim(),ex=IM[v.toUpperCase()],s=sugICD(v);
+ addICD(+card.dataset.i,ex?ex.code:(s[0]?s[0].code:v),card)});
+el.addEventListener('click',e=>{const card=e.target.closest('[data-i]');if(!card)return;const i=+card.dataset.i;
+ if(e.target.dataset.c)addICD(i,e.target.dataset.c,card);
+ if(e.target.dataset.x!==undefined){DB.rows[i].icd.splice(+e.target.dataset.x,1);save(DB.rows[i]);card.querySelector('.tg').innerHTML=tags(DB.rows[i])}
+ if(e.target.dataset.d&&confirm('Xoá dòng này?')){if(FBON){FBX.del(DB.rows[i]).catch(x=>stat('Lỗi: '+(x.code||x.message)))}else{DB.rows.splice(i,1);save();renderE()}}});
+$('#add').onclick=()=>{if(FBON){if(!FBX.user)return;const o=DB.rows.length?Math.min(...DB.rows.map(r=>r.o||0))-1:0;$('#eq').value='';FBX.put({k:FBX.newId(),id:'',t:'',g:'',icd:[],o}).catch(x=>stat('Lỗi: '+(x.code||x.message)));return}
+ DB.rows.unshift({id:'',t:'',g:'',icd:[]});$('#eq').value='';save();renderE()};
+$('#exp').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(DB,null,1)],{type:'application/json'}));a.download='data.json';a.click()};
+$('#imp').onclick=()=>$('#fi').click();
+$('#fi').onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());if(!j.rows)throw 0;DB=j;save();renderE();search()}catch(x){alert('File JSON không hợp lệ')}};
+$('#gh').onclick=()=>{const f=$('#ghf');f.hidden=!f.hidden;const c=JSON.parse(localStorage.gh||'{}');$('#g1').value=c.repo||'';$('#g2').value=c.branch||'';$('#g3').value=c.path||'';$('#g4').value=c.token||''};
+$('#gs').onclick=()=>{localStorage.gh=JSON.stringify({repo:$('#g1').value.trim(),branch:$('#g2').value.trim(),path:$('#g3').value.trim(),token:$('#g4').value.trim()});push()};
+
+// ===== Tab =====
+$$('nav button').forEach(b=>b.onclick=()=>{$$('nav button').forEach(x=>x.classList.toggle('on',x===b));
+ ['s','p','e'].forEach(k=>$('#'+k).hidden=k!==b.dataset.t);if(b.dataset.t==='e')renderE();else if(b.dataset.t==='s')search()});
+// ===== Firebase =====
+window.onRows=l=>{DB.rows=l;search();if(!$('#e').hidden&&!(document.activeElement&&document.activeElement.closest('#el,#fbbar')))renderE()};
+window.onAuth=()=>{if(!$('#e').hidden)renderE()};
+window.fbErr=e=>{$('#cnt').textContent='Lỗi Firebase: '+(e.code||e.message)};
+$('#fbbar').onclick=async e=>{const id=e.target.id;try{
+ if(id==='li')await FBX.login($('#em').value.trim(),$('#pw').value);
+ if(id==='lo')await FBX.logout();
+ if(id==='sd'){const r=await(await fetch('data.json')).json();await FBX.seed(r.rows);stat('Đã đẩy dữ liệu gốc lên Firebase ✓')}
+}catch(x){stat('Lỗi: '+(x.code||x.message))}};
+window.addEventListener('load',async()=>{if(FBON){$('#gh').hidden=$('#imp').hidden=true}await loadICD();if(!FBON)await load();search()});
+</script>
+<script type="module">
+const C=window.FB_CONFIG;
+if(C){
+ const V='10.12.2',B='https://www.gstatic.com/firebasejs/'+V+'/';
+ const A=await import(B+'firebase-app.js'),F=await import(B+'firebase-firestore.js'),U=await import(B+'firebase-auth.js');
+ const app=A.initializeApp(C),db=F.getFirestore(app),au=U.getAuth(app),ref=F.doc(db,'app','rows');
+ const pack=r=>({id:r.id||'',t:r.t||'',g:r.g||'',icd:r.icd||[],o:r.o||0});
+ window.FBX={user:null,
+  put:r=>F.setDoc(ref,{[r.k]:pack(r)},{merge:true}),
+  del:r=>F.updateDoc(ref,{[r.k]:F.deleteField()}),
+  newId:()=>'n'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+  login:(e,p)=>U.signInWithEmailAndPassword(au,e,p),logout:()=>U.signOut(au),
+  seed:rows=>{const m={};rows.forEach((r,i)=>{m['r'+String(i).padStart(4,'0')]=pack({...r,o:i})});return F.setDoc(ref,m)}};
+ U.onAuthStateChanged(au,u=>{FBX.user=u;window.onAuth&&window.onAuth()});
+ F.onSnapshot(ref,s=>{const d=s.data()||{};window.onRows(Object.entries(d).map(([k,v])=>({k,...v})).sort((a,b)=>(a.o||0)-(b.o||0)))},e=>window.fbErr(e));
+}
+</script></body></html>
