@@ -39,9 +39,11 @@ table.t16 td{border:1px solid var(--bd);padding:6px 8px;vertical-align:top}
 table.t16 tr.gh td{background:var(--alt);font-weight:700}
 table.t16 td.ci{white-space:nowrap;font-weight:600;width:56px}
 table.t16 td:last-child{width:120px}
-#oc{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px;white-space:nowrap}
-#oc button{flex:none;padding:6px 12px;border-radius:16px;font:inherit;font-size:14px;border:1px solid var(--bi);background:var(--card);color:var(--tx);cursor:pointer}
-#oc button.on{background:var(--pr);color:#fff;border-color:var(--pr)}
+table.tr1{min-width:560px}
+table.tr1 td:last-child{width:auto}
+table.tr1 td:nth-child(3){width:112px}
+table.tr1 td.ci{width:78px}
+table.tr1 tr.m1 td{border-top:2px solid var(--bi)}
 #ap{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-top:3px solid var(--pr);box-shadow:0 -4px 16px #0004;max-height:45vh;overflow:auto}
 .aph{display:flex;justify-content:space-between;gap:8px;padding:8px 14px;cursor:pointer;position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--bd)}
 #apb{padding:6px 14px 12px;max-width:900px;margin:auto}
@@ -53,8 +55,7 @@ table.t16 td:last-child{width:120px}
 
 <section id="s">
  <div id="sm"><button class="b on" data-m="s">Tìm kiếm</button><button class="b" data-m="t">1613</button></div>
- <div class="sb"><input id="q" placeholder="Gõ tên bệnh, mã ICD hoặc nội dung trong bảng 1613…" autocomplete="off"><div class="dd" id="dd" hidden></div></div>
- <div id="oc"></div>
+ <div class="sb"><input id="q" placeholder="Gõ mã ICD hoặc tên bệnh…" autocomplete="off"></div>
  <div class="mu" id="cnt" style="margin:6px 2px"></div><div id="res"></div>
  <div id="t16" hidden></div>
 </section>
@@ -156,23 +157,18 @@ const OG=[
 {k:'nt',n:'Nội tiết – Chuyển hóa',s:'NT-CH',a:[95,100],al:[],c:T3(6)},
 {k:'u',n:'U các loại',s:'U',a:[101,102],al:[],c:T3(2)}];
 OG.forEach(o=>o.n2=nm(o.n).replace(/[^a-z0-9]+/g,' ').trim());
-let ORGSEL=null,APC=false;
+let APC=false;
 function organOf(r){const n=parseInt(r.id);if(!n)return null;return OG.find(o=>o.a&&n>=o.a[0]&&n<=o.a[1])||null}
 function apHTML(o){const L=[...o.c,'Có 1 chỉ tiêu ở loại 4','Có 1 chỉ tiêu ở loại 5'],R=['I','II','III','IV','V'];
  return `<div class="ao"><b>${esc(o.n)}</b> <span class="mu">(${esc(o.s)}${o.a?' · mục '+o.a[0]+'–'+o.a[1]:''})</span><table>`+L.map((t,i)=>`<tr><td style="background:${GC[i+1]}">Loại ${R[i]}<br><small>${GN[i+1]}</small></td><td>${esc(t)}${o.note&&i==1?' <span class="mu">(nguyên văn quyết định ghi "Cả 3", có thể là lỗi in của "Cả 13")</span>':''}</td></tr>`).join('')+'</table></div>'}
 function panel(){const p=$('#ap'),v=$('#q').value.trim();let list=[],msg='';if(TM){p.hidden=true;return}
- if(ORGSEL)list=[ORGSEL];
- else if(/^[a-z]\d{2}(\.\d*)?$/i.test(v)){const u=v.toUpperCase(),set=new Set();
+ if(/^[a-z]\d{2}(\.\d*)?$/i.test(v)){const u=v.toUpperCase(),set=new Set();
   DB.rows.forEach(x=>{if((x.icd||[]).some(c=>c.toUpperCase().startsWith(u))){const o=organOf(x);if(o)set.add(o.k)}});
   list=OG.filter(o=>set.has(o.k));
   msg=list.length?'Mã '+u+' thuộc cơ quan:':'Mã '+u+' chưa được gắn vào mục nào của bảng 1613. Gắn ở tab Chỉnh sửa để hiện bảng cơ quan.'}
- else{const q2=nm(v).replace(/[^a-z0-9]+/g,' ').trim();if(q2.length>=3)list=OG.filter(o=>o.n2.startsWith(q2)||o.al.includes(q2))}
  if(!list.length&&!msg){p.hidden=true;document.body.style.paddingBottom='';return}
  $('#apb').innerHTML=(msg?`<div class="mu" style="margin-top:6px">${esc(msg)}</div>`:'')+list.map(apHTML).join('');
  $('#apb').hidden=APC;p.hidden=false;document.body.style.paddingBottom=(p.offsetHeight+16)+'px'}
-$('#oc').innerHTML=OG.map(o=>`<button data-o="${o.k}">${esc(o.n)}</button>`).join('');
-$('#oc').onclick=e=>{const b=e.target.closest('[data-o]');if(!b)return;ORGSEL=OG.find(o=>o.k===b.dataset.o);$('#q').value=ORGSEL.n;$('#dd').hidden=true;
- $$('#oc button').forEach(x=>x.classList.toggle('on',x===b));search()};
 document.querySelector('.aph').onclick=()=>{APC=!APC;$('#apt').textContent=APC?'Mở rộng ▴':'Thu gọn ▾';panel()};
 
 // ===== Bảng gốc 1613 =====
@@ -193,36 +189,43 @@ function organTable(o){let h='',last=null;
   if(n!==last){last=n;h+=`<tr class="gh"><td colspan="3">Mục ${n} – ${esc(MT[n-1]||'')}</td></tr>`}
   const t=r.t.includes(' – ')?r.t.split(' – ').slice(1).join(' – '):r.t;
   h+=`<tr><td class="ci">${esc(r.id)}</td><td>${esc(t)}</td><td>${gcell(r)}</td></tr>`});
- return `<div class="tw"><table class="t16"><tr><th>TT</th><th>Bệnh tật</th><th>Phân loại</th></tr>${h}</table></div><div class="mu">Cách xếp loại cơ quan này theo phụ lục II:</div>`+apHTML(o)}
+ return `<div class="mu" style="margin-top:6px"><b>Phụ lục II – Cách xếp loại cơ quan</b></div>`+apHTML(o)+`<div class="mu" style="margin-top:12px"><b>Chi tiết các mục trong bảng</b></div><div class="tw"><table class="t16"><tr><th>TT</th><th>Bệnh tật</th><th>Phân loại</th></tr>${h}</table></div>`}
 const TL=[[['160 trở lên','48 trở lên','80 trở lên','152 trở lên','44 trở lên','75 trở lên'],['156-159','46-47','77-79','149-151','42-43','73-74'],['152-155','42-45','74-76','145-148','40-41','71-72'],['149-151','39-41','71-73','142-144','37-39','69-70'],['Dưới 149','Dưới 39','Dưới 71','Dưới 142','Dưới 37','Dưới 69']],
 [['163 trở lên','50 trở lên','82 trở lên','155 trở lên','45 trở lên','76 trở lên'],['158-162','47-49','79-81','151-154','43-44','74-75'],['154-157','45-46','76-78','147-150','40-42','72-73'],['150-153','41-44','74-75','143-146','38-39','70-71'],['Dưới 150','Dưới 40','Dưới 74','Dưới 143','Dưới 38','Dưới 70']]];
 function thuluc(){const tb=(t,a)=>`<div class="mu" style="margin-top:10px"><b>${t}</b></div><div class="tw"><table class="t16"><tr><th rowspan="2">Loại</th><th colspan="3">Nam</th><th colspan="3">Nữ</th></tr><tr><th>Cao (cm)</th><th>Nặng (kg)</th><th>Ngực (cm)</th><th>Cao (cm)</th><th>Nặng (kg)</th><th>Ngực (cm)</th></tr>`+a.map((r,i)=>`<tr><td><span class="g" style="background:${GC[i+1]}">${i+1}</span></td>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')+'</table></div>';
- return tb('1.1. Học sinh các trường đại học, trung học chuyên nghiệp, dạy nghề',TL[0])+tb('1.2. Lao động ở các nghề, công việc',TL[1])+'<div class="mu">Bản PDF ghi chiều cao loại 1 nam lao động là "1603 trở lên", ở đây hiểu là 163 (loại 2 ghi 158-162). Cân nặng nam lao động 40 đến 41 kg không nằm trong khoảng nào của bảng gốc.</div><div class="mu" style="margin-top:8px">Cách xếp loại thể lực theo phụ lục II:</div>'+apHTML(OG[0])}
+ return '<div class="mu" style="margin-top:6px"><b>Phụ lục II – Cách xếp loại thể lực</b></div>'+apHTML(OG[0])+'<div class="mu" style="margin-top:12px"><b>Chi tiết các bảng thể lực (mục II.1)</b></div>'+tb('1.1. Học sinh các trường đại học, trung học chuyên nghiệp, dạy nghề',TL[0])+tb('1.2. Lao động ở các nghề, công việc',TL[1])+'<div class="mu">Bản PDF ghi chiều cao loại 1 nam lao động là "1603 trở lên", ở đây hiểu là 163 (loại 2 ghi 158-162). Cân nặng nam lao động 40 đến 41 kg không nằm trong khoảng nào của bảng gốc.</div>'}
 function t16(){const c='<div class="t16c">'+OG.map(o=>`<button data-t="${o.k}" class="${T16O&&T16O.k===o.k?'on':''}">${esc(o.n)}</button>`).join('')+'</div>';
  $('#t16').innerHTML=c+(T16O?(T16O.k==='tl'?thuluc():organTable(T16O)):'<div class="mu" style="margin:8px 2px">Bảng gốc Quyết định 1613/BYT-QĐ (1997). Chọn một cơ quan để xem.</div>')}
 $('#t16').onclick=e=>{const b=e.target.closest('[data-t]');if(!b)return;T16O=OG.find(o=>o.k===b.dataset.t);t16();window.scrollTo(0,0)};
 $('#sm').onclick=e=>{const b=e.target.closest('[data-m]');if(!b)return;TM=b.dataset.m==='t';
  $$('#sm button').forEach(x=>x.classList.toggle('on',x===b));
- ['.sb','#oc','#cnt','#res'].forEach(q=>document.querySelector(q).hidden=TM);$('#t16').hidden=!TM;
+ ['.sb','#cnt','#res'].forEach(q=>document.querySelector(q).hidden=TM);$('#t16').hidden=!TM;
  if(TM){$('#ap').hidden=true;document.body.style.paddingBottom='';t16()}else search()};
 
 // ===== Tra cứu =====
-const gb=g=>{const d=(String(g).match(/\d/)||[])[0];return d?`<span class="g" style="background:${GC[d]}">Loại ${esc(g)}</span>`:'<span class="g" style="background:#9ca3af">Chưa phân loại</span>'};
-function hay(r){return nm(r.id+' '+r.t+' '+r.icd.map(c=>c+' '+iname(c)).join(' '))}
-function match(h,q){return q.every(t=>h.includes(t))}
-function search(){const v=$('#q').value.trim(),q=nm(v).split(/\s+/).filter(Boolean);let out=[];
- DB.rows.forEach(r=>{if(ORGSEL?organOf(r)===ORGSEL:(!q.length||match(hay(r),q))){if(r.icd.length&&!ORGSEL)r.icd.forEach(c=>out.push([r,c]));else out.push([r,''])}});
- $('#cnt').textContent=q.length?out.length+' kết quả':'Hiển thị '+out.length+' dòng';
- $('#res').innerHTML=out.slice(0,150).map(([r,c])=>`<div class="card"><div>${c?`<b>${esc(iname(c)||'(không rõ tên bệnh)')}</b> <code>${esc(c)}</code>`:`<b>${esc(r.t)}</b>`}</div>
- <div style="margin:4px 0">${gb(r.g)} ${r.g&&GN[(r.g.match(/\d/)||[])[0]]?`<span class="mu">${GN[r.g.match(/\d/)[0]]}</span>`:''} · <span class="mu">Mục ${esc(r.id)} – QĐ 1613</span></div>
- ${c?`<div class="mu">${esc(r.t)}</div>`:''}</div>`).join('')+(out.length>150?'<div class="mu">… còn nữa, gõ thêm để lọc.</div>':'');panel()}
-function suggest(){const v=$('#q').value.trim(),q=nm(v).split(/\s+/).filter(Boolean),dd=$('#dd');if(!q.length){dd.hidden=true;return}
- let s=[];const seen=new Set();DB.rows.forEach(r=>{if(s.length<5&&match(hay(r),q)){s.push(['Mục '+r.id+' · '+r.t,r.t]);}});
- for(const x of ICD){if(s.length>=10)break;if(match(x.n,q))s.push([x.code+' — '+x.name,x.code])}
- dd.innerHTML=s.map(a=>`<div data-v="${esc(a[1])}">${esc(a[0])}</div>`).join('');dd.hidden=!s.length}
-$('#q').oninput=()=>{ORGSEL=null;$$('#oc button').forEach(x=>x.classList.remove('on'));search();suggest()};
-$('#dd').onclick=e=>{const d=e.target.closest('[data-v]');if(d){$('#q').value=d.dataset.v;$('#dd').hidden=true;search()}};
-document.addEventListener('click',e=>{if(!e.target.closest('.sb'))$('#dd').hidden=true});
+function rowTxt(r){return r.t.includes(' – ')?r.t.split(' – ').slice(1).join(' – '):r.t}
+function gradeOnly(r){return /\d/.test(String(r.g||''))?gcell(r):''}
+function mucCell(r){const n=parseInt(r.id),o=organOf(r);if(!r.id&&!r.t)return '';
+ return `<b>${esc(r.id)}</b> ${esc(MT[n-1]||'')}`+(o?`<div class="mu" style="font-size:12px">${esc(o.n)}</div>`:'')+`<div class="mu" style="font-size:12px">${esc(rowTxt(r))}</div>`}
+let st;
+function search(){
+ const v=$('#q').value.trim(),q=nm(v).split(/\s+/).filter(Boolean),res=$('#res'),cnt=$('#cnt');
+ if(!q.length){cnt.textContent=ICD.length?'Gõ mã ICD hoặc tên bệnh để tìm ('+ICD.length+' mã trong danh sách)':'Chưa tải được danh sách ICD (icd.json)';res.innerHTML='';panel();return}
+ const AT={};DB.rows.forEach(r=>(r.icd||[]).forEach(c=>{const k=c.toUpperCase();(AT[k]=AT[k]||[]).push(r)}));
+ const list=ICD.slice();Object.keys(AT).forEach(c=>{if(!IM[c])list.push({code:c,name:'(chưa có trong danh sách ICD)',n:nm(c)})});
+ const f=q[0],codeQ=/^[a-z]\d/.test(f),m=[];
+ for(const x of list){if(!q.every(t=>x.n.includes(t)))continue;
+  const cl=x.cl||(x.cl=x.code.toLowerCase()),nn=x.nn||(x.nn=nm(x.name));let sc;
+  if(cl===f)sc=0;else if(codeQ&&cl.startsWith(f))sc=1;else if(nn.startsWith(f))sc=2;else if((' '+nn).includes(' '+f))sc=3;else sc=4;
+  m.push([sc,AT[x.code.toUpperCase()]?0:1,x])}
+ m.sort((a,b)=>a[0]-b[0]||a[1]-b[1]||(a[2].cl<b[2].cl?-1:a[2].cl>b[2].cl?1:0));
+ let h='',lines=0;
+ for(const [,,x] of m){if(lines>=200)break;const rs=AT[x.code.toUpperCase()]||[null];
+  rs.forEach((r,i)=>{lines++;h+=`<tr${i==0?' class="m1"':''}><td class="ci">${i==0?esc(x.code):''}</td><td>${i==0?esc(x.name):''}</td><td>${r?gradeOnly(r):''}</td><td>${r?mucCell(r):''}</td></tr>`})}
+ cnt.textContent=m.length?m.length+' mã bệnh phù hợp'+(lines>=200?' (hiển thị 200 dòng đầu, gõ thêm để lọc)':''):'Không tìm thấy mã ICD hoặc tên bệnh phù hợp';
+ res.innerHTML=m.length?`<div class="tw"><table class="t16 tr1"><tr><th>Mã bệnh</th><th>Tên bệnh</th><th>Phân loại 1613</th><th>Nhóm / mục 1613</th></tr>${h}</table></div>`:'';
+ panel()}
+$('#q').oninput=()=>{clearTimeout(st);st=setTimeout(search,80)};
 
 // ===== Thể lực (II.1, III, phụ lục 1-2) =====
 const T={sm:{h:[160,156,152,149],w:[48,46,42,39],c:[80,77,74,71]},sf:{h:[152,149,145,142],w:[44,42,40,37],c:[75,73,71,69]},
