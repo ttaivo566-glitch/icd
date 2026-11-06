@@ -26,6 +26,19 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--pr);outline-offs
 .er{display:grid;grid-template-columns:70px 1fr 70px;gap:6px;align-items:start}
 .er .ic{grid-column:1/-1}
 code{background:var(--bg);padding:1px 6px;border-radius:5px}
+[hidden]{display:none!important}
+#sm{display:flex;gap:6px;margin-bottom:8px}#sm button{flex:1}
+#sm button.on{background:var(--pr);color:#fff;border-color:var(--pr)}
+.t16c{display:flex;flex-wrap:wrap;gap:6px;padding:6px 0}
+.t16c button{padding:6px 12px;border-radius:16px;font:inherit;font-size:14px;border:1px solid var(--bi);background:var(--card);color:var(--tx);cursor:pointer}
+.t16c button.on{background:var(--pr);color:#fff;border-color:var(--pr)}
+.tw{overflow-x:auto;margin:8px 0}
+table.t16{width:100%;border-collapse:collapse;background:var(--card);min-width:420px}
+table.t16 th{background:var(--pr);color:#fff;padding:6px 8px;text-align:left}
+table.t16 td{border:1px solid var(--bd);padding:6px 8px;vertical-align:top}
+table.t16 tr.gh td{background:var(--alt);font-weight:700}
+table.t16 td.ci{white-space:nowrap;font-weight:600;width:56px}
+table.t16 td:last-child{width:120px}
 #oc{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px;white-space:nowrap}
 #oc button{flex:none;padding:6px 12px;border-radius:16px;font:inherit;font-size:14px;border:1px solid var(--bi);background:var(--card);color:var(--tx);cursor:pointer}
 #oc button.on{background:var(--pr);color:#fff;border-color:var(--pr)}
@@ -39,9 +52,11 @@ code{background:var(--bg);padding:1px 6px;border-radius:5px}
 <nav><button data-t="s" class="on">Tra cứu</button><button data-t="p">Phân loại thể lực</button><button data-t="e">Chỉnh sửa</button></nav>
 
 <section id="s">
+ <div id="sm"><button class="b on" data-m="s">Tìm kiếm</button><button class="b" data-m="t">1613</button></div>
  <div class="sb"><input id="q" placeholder="Gõ tên bệnh, mã ICD hoặc nội dung trong bảng 1613…" autocomplete="off"><div class="dd" id="dd" hidden></div></div>
  <div id="oc"></div>
  <div class="mu" id="cnt" style="margin:6px 2px"></div><div id="res"></div>
+ <div id="t16" hidden></div>
 </section>
 
 <section id="p" hidden>
@@ -145,7 +160,7 @@ let ORGSEL=null,APC=false;
 function organOf(r){const n=parseInt(r.id);if(!n)return null;return OG.find(o=>o.a&&n>=o.a[0]&&n<=o.a[1])||null}
 function apHTML(o){const L=[...o.c,'Có 1 chỉ tiêu ở loại 4','Có 1 chỉ tiêu ở loại 5'],R=['I','II','III','IV','V'];
  return `<div class="ao"><b>${esc(o.n)}</b> <span class="mu">(${esc(o.s)}${o.a?' · mục '+o.a[0]+'–'+o.a[1]:''})</span><table>`+L.map((t,i)=>`<tr><td style="background:${GC[i+1]}">Loại ${R[i]}<br><small>${GN[i+1]}</small></td><td>${esc(t)}${o.note&&i==1?' <span class="mu">(nguyên văn quyết định ghi "Cả 3", có thể là lỗi in của "Cả 13")</span>':''}</td></tr>`).join('')+'</table></div>'}
-function panel(){const p=$('#ap'),v=$('#q').value.trim();let list=[],msg='';
+function panel(){const p=$('#ap'),v=$('#q').value.trim();let list=[],msg='';if(TM){p.hidden=true;return}
  if(ORGSEL)list=[ORGSEL];
  else if(/^[a-z]\d{2}(\.\d*)?$/i.test(v)){const u=v.toUpperCase(),set=new Set();
   DB.rows.forEach(x=>{if((x.icd||[]).some(c=>c.toUpperCase().startsWith(u))){const o=organOf(x);if(o)set.add(o.k)}});
@@ -159,6 +174,37 @@ $('#oc').innerHTML=OG.map(o=>`<button data-o="${o.k}">${esc(o.n)}</button>`).joi
 $('#oc').onclick=e=>{const b=e.target.closest('[data-o]');if(!b)return;ORGSEL=OG.find(o=>o.k===b.dataset.o);$('#q').value=ORGSEL.n;$('#dd').hidden=true;
  $$('#oc button').forEach(x=>x.classList.toggle('on',x===b));search()};
 document.querySelector('.aph').onclick=()=>{APC=!APC;$('#apt').textContent=APC?'Mở rộng ▴':'Thu gọn ▾';panel()};
+
+// ===== Bảng gốc 1613 =====
+const MT='Thị lực|Mộng thịt|Sẹo giác mạc|Mắt hột|Viêm tắc lệ đạo mạn tính hoặc điều trị nhiều lần không khỏi|Lác mắt|Hỏng một mắt|Cận thị|Viễn thị|Loạn thị|Rối loạn sắc giác|Các bệnh về đáy mắt|Các bệnh khác về mắt|Tai ngoài|Tai giữa|Tai trong|Xương chũm|Mũi|Họng|Amidan|Thanh quản|Xoang mặt|Răng sâu|Mất răng|Viêm quanh răng|Răng viêm tuỷ, tuỷ hoại tử, viêm quanh cuống|Răng khôn|Xương hàm|Viêm lợi|Viêm tuyến mang tai|Sứt môi, khe hở vòm miệng|Bệnh tâm thần phân liệt các thể|Loạn thần về triệu chứng và thực tổn|Bệnh thái nhân cách|Động kinh|Hội chứng suy nhược thần kinh của bệnh thần kinh thực tổn|Ra mồ hôi tay, chân|Phản xạ gân xương|Chóng mặt có hệ thống, rối loạn tiền đình - tiểu não|Liệt mặt ngoại vi|Liệt dây thần kinh|Di chứng tổn thương thần kinh trung ương|Đau rễ thần kinh và các đám rối thần kinh|Bệnh thần kinh - cơ|Huyết áp động mạch|Mạch|Giãn tĩnh mạch|Nhịp tim|Bệnh tim|Máu - bạch huyết|Màng phổi|Phế quản|Phổi|Thực quản|Dạ dày tá tràng|Đại tràng, trực tràng|Hậu môn trực tràng|Tiểu tràng|Ruột thừa|Gan|Mật, tuỵ|Lách|Tiết niệu|Sinh dục nam|Sinh dục nữ|Khớp xương|Xương|Chiều dài các chi|Hai chân vòng kiềng chữ O hoặc chữ X|Bàn chân bẹt|Chai chân, mắt cá lòng bàn chân, rỗ chân|Mất ngón tay, ngón chân|Dính kẽ ngón tay, ngón chân|Thừa ngón tay, ngón chân|Co rút ngón tay, ngón chân|Lệch vẹo ngón chân cái|Lao xương|Ung thư xương khớp|Nấm da (hắc lào, nấm bẹn)|Nấm kẽ|Lang ben|Ghẻ|Eczéma|Bệnh Durhing, Pemphigus|Bệnh Lupus ban đỏ, vảy nến|Tổ đỉa, viêm da thần kinh|Lậu|Giang mai|HIV/AIDS|Bệnh phong|Hạ cam mềm|Sùi mào gà|Nicolas Favres|Viêm móng, xung quanh móng|Bệnh tuyến giáp|Bệnh tuyến yên|Đái tháo đường|Đái tháo nhạt|Cường vỏ thượng thận|Bệnh béo phệ|U lành tính|U ác tính'.split('|');
+let TM=false,T16O=null;
+function gnote(t){
+ if(/thị lực chuẩn/.test(t))return /hạ xuống/.test(t)?'Không có dấu loại: xếp theo thị lực chuẩn, rồi hạ xuống 1 loại':'Không có dấu loại: xếp theo thị lực chuẩn của 2 mắt';
+ if(/tuỳ nguyên nhân|theo nguyên nhân/.test(t))return 'Không có dấu loại: xếp loại tuỳ nguyên nhân';
+ if(/không xếp loại/.test(t))return 'Không xếp loại';
+ if(/xếp (loại )?theo/.test(t))return 'Không có dấu loại: xếp theo mục được nêu trong nội dung';
+ return 'Chưa có loại (bảng gốc không đánh dấu hoặc dữ liệu chưa nhập)'}
+function gcell(r){const ds=String(r.g||'').match(/\d/g);
+ if(!ds)return `<span class="mu">${esc(gnote(r.t))}</span>`;
+ const a=ds[0],b=ds[1],two=b&&b!==a;
+ return `<span class="g" style="background:${two?`linear-gradient(90deg,${GC[a]} 50%,${GC[b]} 50%)`:GC[a]}">Loại ${two?a+' – '+b:a}</span>`+(two?'<div class="mu" style="font-size:12px">Bảng gốc đánh dấu 2 cột: tuỳ mức độ</div>':'')}
+function organTable(o){let h='',last=null;
+ DB.rows.filter(r=>organOf(r)===o).forEach(r=>{const n=parseInt(r.id);
+  if(n!==last){last=n;h+=`<tr class="gh"><td colspan="3">Mục ${n} – ${esc(MT[n-1]||'')}</td></tr>`}
+  const t=r.t.includes(' – ')?r.t.split(' – ').slice(1).join(' – '):r.t;
+  h+=`<tr><td class="ci">${esc(r.id)}</td><td>${esc(t)}</td><td>${gcell(r)}</td></tr>`});
+ return `<div class="tw"><table class="t16"><tr><th>TT</th><th>Bệnh tật</th><th>Phân loại</th></tr>${h}</table></div><div class="mu">Cách xếp loại cơ quan này theo phụ lục II:</div>`+apHTML(o)}
+const TL=[[['160 trở lên','48 trở lên','80 trở lên','152 trở lên','44 trở lên','75 trở lên'],['156-159','46-47','77-79','149-151','42-43','73-74'],['152-155','42-45','74-76','145-148','40-41','71-72'],['149-151','39-41','71-73','142-144','37-39','69-70'],['Dưới 149','Dưới 39','Dưới 71','Dưới 142','Dưới 37','Dưới 69']],
+[['163 trở lên','50 trở lên','82 trở lên','155 trở lên','45 trở lên','76 trở lên'],['158-162','47-49','79-81','151-154','43-44','74-75'],['154-157','45-46','76-78','147-150','40-42','72-73'],['150-153','41-44','74-75','143-146','38-39','70-71'],['Dưới 150','Dưới 40','Dưới 74','Dưới 143','Dưới 38','Dưới 70']]];
+function thuluc(){const tb=(t,a)=>`<div class="mu" style="margin-top:10px"><b>${t}</b></div><div class="tw"><table class="t16"><tr><th rowspan="2">Loại</th><th colspan="3">Nam</th><th colspan="3">Nữ</th></tr><tr><th>Cao (cm)</th><th>Nặng (kg)</th><th>Ngực (cm)</th><th>Cao (cm)</th><th>Nặng (kg)</th><th>Ngực (cm)</th></tr>`+a.map((r,i)=>`<tr><td><span class="g" style="background:${GC[i+1]}">${i+1}</span></td>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')+'</table></div>';
+ return tb('1.1. Học sinh các trường đại học, trung học chuyên nghiệp, dạy nghề',TL[0])+tb('1.2. Lao động ở các nghề, công việc',TL[1])+'<div class="mu">Bản PDF ghi chiều cao loại 1 nam lao động là "1603 trở lên", ở đây hiểu là 163 (loại 2 ghi 158-162). Cân nặng nam lao động 40 đến 41 kg không nằm trong khoảng nào của bảng gốc.</div><div class="mu" style="margin-top:8px">Cách xếp loại thể lực theo phụ lục II:</div>'+apHTML(OG[0])}
+function t16(){const c='<div class="t16c">'+OG.map(o=>`<button data-t="${o.k}" class="${T16O&&T16O.k===o.k?'on':''}">${esc(o.n)}</button>`).join('')+'</div>';
+ $('#t16').innerHTML=c+(T16O?(T16O.k==='tl'?thuluc():organTable(T16O)):'<div class="mu" style="margin:8px 2px">Bảng gốc Quyết định 1613/BYT-QĐ (1997). Chọn một cơ quan để xem.</div>')}
+$('#t16').onclick=e=>{const b=e.target.closest('[data-t]');if(!b)return;T16O=OG.find(o=>o.k===b.dataset.t);t16();window.scrollTo(0,0)};
+$('#sm').onclick=e=>{const b=e.target.closest('[data-m]');if(!b)return;TM=b.dataset.m==='t';
+ $$('#sm button').forEach(x=>x.classList.toggle('on',x===b));
+ ['.sb','#oc','#cnt','#res'].forEach(q=>document.querySelector(q).hidden=TM);$('#t16').hidden=!TM;
+ if(TM){$('#ap').hidden=true;document.body.style.paddingBottom='';t16()}else search()};
 
 // ===== Tra cứu =====
 const gb=g=>{const d=(String(g).match(/\d/)||[])[0];return d?`<span class="g" style="background:${GC[d]}">Loại ${esc(g)}</span>`:'<span class="g" style="background:#9ca3af">Chưa phân loại</span>'};
@@ -230,7 +276,7 @@ $('#gs').onclick=()=>{localStorage.gh=JSON.stringify({repo:$('#g1').value.trim()
 $$('nav button').forEach(b=>b.onclick=()=>{$$('nav button').forEach(x=>x.classList.toggle('on',x===b));
  ['s','p','e'].forEach(k=>$('#'+k).hidden=k!==b.dataset.t);$('#ap').hidden=true;document.body.style.paddingBottom='';if(b.dataset.t==='e')renderE();else if(b.dataset.t==='s')search()});
 // ===== Firebase =====
-window.onRows=l=>{DB.rows=l;search();if(!$('#e').hidden&&!(document.activeElement&&document.activeElement.closest('#el,#fbbar')))renderE()};
+window.onRows=l=>{DB.rows=l;search();if(TM&&T16O)t16();if(!$('#e').hidden&&!(document.activeElement&&document.activeElement.closest('#el,#fbbar')))renderE()};
 window.onAuth=()=>{if(!$('#e').hidden)renderE()};
 window.fbErr=e=>{$('#cnt').textContent='Lỗi Firebase: '+(e.code||e.message)};
 $('#fbbar').onclick=async e=>{const id=e.target.id;try{
