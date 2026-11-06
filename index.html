@@ -6,19 +6,21 @@
 <script src="icd.js" onerror="console.warn('Chưa có icd.js')"></script>
 <script src="firebase-config.js" onerror="console.warn('Chưa có firebase-config.js: chạy chế độ không đồng bộ')"></script>
 <style>
-:root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f24;--mu:#6b7280;--bd:#e3e6ea;--pr:#2563eb}
-@media(prefers-color-scheme:dark){:root{--bg:#14171b;--card:#1d2127;--tx:#e8eaed;--mu:#9aa3ad;--bd:#2c323a;--pr:#60a5fa}}
+:root{--bg:#d9e1ea;--card:#f4f7fb;--alt:#e6edf5;--inp:#fff;--tx:#1f2933;--mu:#52606d;--bd:#b4c0cf;--bi:#8fa1b7;--pr:#2563eb}
+@media(prefers-color-scheme:dark){:root{--bg:#101316;--card:#1b2026;--alt:#232a31;--inp:#2a323b;--tx:#e8eaed;--mu:#9aa3ad;--bd:#38414b;--bi:#56626f;--pr:#60a5fa}}
 *{box-sizing:border-box}body{margin:0;font:15px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--tx)}
 .w{max-width:900px;margin:auto;padding:12px}
 nav{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 nav button,.b{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit}
 nav button.on,.b.p{background:var(--pr);color:#fff;border-color:var(--pr)}
-input,select,textarea{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;width:100%}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin:8px 0}
+input,select,textarea{font:inherit;color:var(--tx);background:var(--inp);border:1px solid var(--bi);border-radius:8px;padding:8px 10px;width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--pr);outline-offset:0}
+.card{background:var(--card);border:1px solid var(--bd);border-left:6px solid var(--bi);border-radius:10px;padding:10px 12px;margin:8px 0;box-shadow:0 1px 2px #0002}
+#el .card:nth-child(even){background:var(--alt)}
 .sb{position:relative}.dd{position:absolute;left:0;right:0;top:100%;z-index:9;background:var(--card);border:1px solid var(--bd);border-radius:8px;box-shadow:0 6px 18px #0003;max-height:300px;overflow:auto}
 .dd div{padding:8px 12px;cursor:pointer}.dd div:hover,.dd div.h{background:var(--bg)}
 .g{display:inline-block;color:#fff;border-radius:6px;padding:1px 9px;font-weight:600;font-size:13px}
-.mu{color:var(--mu);font-size:13px}.tag{display:inline-flex;gap:4px;align-items:center;background:var(--bg);border:1px solid var(--bd);border-radius:14px;padding:2px 4px 2px 10px;margin:2px;font-size:13px}
+.mu{color:var(--mu);font-size:13px}.tag{display:inline-flex;gap:4px;align-items:center;background:var(--alt);border:1px solid var(--bi);border-radius:14px;padding:2px 4px 2px 10px;margin:2px;font-size:13px}
 .tag b{cursor:pointer;padding:0 6px;color:var(--mu)}
 .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
 .er{display:grid;grid-template-columns:70px 1fr 70px;gap:6px;align-items:start}
@@ -146,7 +148,7 @@ $('#go').onclick=()=>{const age=+$('#ag').value,H=rd(+$('#ht').value),W=rd(+$('#
 // ===== Chỉnh sửa =====
 function sugICD(v){const q=nm(v).split(/\s+/).filter(Boolean);return q.length?ICD.filter(x=>match(x.n,q)).slice(0,6):[]}
 function tags(r){return r.icd.map((c,j)=>`<span class="tag"><span><b style="cursor:default;color:inherit;padding:0">${esc(c)}</b> ${esc(iname(c))}</span><b data-x="${j}">×</b></span>`).join('')}
-function erow(r,i){return `<div class="card" data-i="${i}"><div class="er"><input data-f="id" value="${esc(r.id)}" placeholder="Mục"><input data-f="t" value="${esc(r.t)}" placeholder="Nội dung"><input data-f="g" value="${esc(r.g)}" placeholder="Loại"></div>
+function erow(r,i){const gd=(String(r.g).match(/\d/)||[])[0];return `<div class="card" data-i="${i}" style="border-left-color:${gd?GC[gd]:'#9aa5b1'}"><div class="er"><input data-f="id" value="${esc(r.id)}" placeholder="Mục"><input data-f="t" value="${esc(r.t)}" placeholder="Nội dung"><input data-f="g" value="${esc(r.g)}" placeholder="Loại"></div>
  <div class="ic"><div class="tg">${tags(r)}</div><div class="sb"><input data-f="icd" placeholder="Thêm mã ICD hoặc tên bệnh, Enter để thêm" autocomplete="off"><div class="dd" hidden></div></div>
  <div style="text-align:right"><span class="mu" style="cursor:pointer" data-d="1">Xoá dòng</span></div></div></div>`}
 function authBar(){const b=$('#fbbar');if(!FBON){b.innerHTML='';return}const u=window.FBX&&FBX.user;
@@ -159,7 +161,7 @@ $('#eq').oninput=renderE;
 const el=$('#el');
 el.addEventListener('input',e=>{const f=e.target.dataset.f,i=e.target.closest('[data-i]')?.dataset.i;if(!f)return;
  if(f==='icd'){const d=e.target.nextElementSibling,s=sugICD(e.target.value);d.innerHTML=s.map(x=>`<div data-c="${esc(x.code)}">${esc(x.code)} — ${esc(x.name)}</div>`).join('');d.hidden=!s.length;return}
- DB.rows[i][f]=e.target.value;save(DB.rows[i])});
+ DB.rows[i][f]=e.target.value;save(DB.rows[i]);if(f==='g'){const d=(e.target.value.match(/\d/)||[])[0];e.target.closest('.card').style.borderLeftColor=d?GC[d]:'#9aa5b1'}});
 function addICD(i,c,card){c=c.trim().toUpperCase();if(!c||DB.rows[i].icd.includes(c))return;DB.rows[i].icd.push(c);save(DB.rows[i]);
  card.querySelector('.tg').innerHTML=tags(DB.rows[i]);const inp=card.querySelector('[data-f=icd]');inp.value='';inp.nextElementSibling.hidden=true}
 el.addEventListener('keydown',e=>{if(e.key!=='Enter'||e.target.dataset.f!=='icd')return;e.preventDefault();
